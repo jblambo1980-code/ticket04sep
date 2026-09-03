@@ -2,9 +2,10 @@
 
 **Tester:** QA agent
 **Date:** 2026-09-03
-**Build under test:** `master` @ `bd41381` (front-end) / `9fbb1f6` (back-end)
-**Environment:** Node 24.19, Windows 11, backend on `http://localhost:4000`, freshly seeded
-(5 movies, 3 cinemas, 60 showtimes, 80 seats each, 30 demo bookings).
+**Build under test:** `master` @ `dc0e0d8` (front-end) / `e72b7ca` (back-end seed fix)
+**Environment:** Node 24.19, Windows 11, backend on `http://localhost:4000`. Re-tested
+against a fresh reseed (5 movies, 3 cinemas, 60 showtimes, 80 seats each, 30 demo bookings)
+after the Back-end poster-URL fix landed.
 
 ## Status summary
 
@@ -13,11 +14,12 @@
 | 1 | Double-booking is blocked (sequential + concurrent) | **PASS** |
 | 2 | Ticket total matches selected seats (API + UI) | **PASS** |
 | 3 | Several full bookings, movie selection → confirmation | **PASS** |
-| 4 | Desktop + mobile layout | **PASS** (1 low-severity note) |
+| 4 | Desktop + mobile layout | **PASS** |
 | 5 | Error paths return the contract error shapes | **PASS** |
+| — | Poster URLs valid (all 5 return HTTP 200) | **PASS** |
 
-**Overall: CineBook works end to end.** No blocking or major defects. One low-severity
-cosmetic/accessibility note against the Front-end (BUG-1), does not affect functionality.
+**Overall: CineBook works end to end.** No open defects. BUG-1 (seat tap-target size) was
+reported, fixed by the Front-end (`dc0e0d8`), and re-tested — confirmed fixed.
 
 ## How it was tested
 
@@ -32,6 +34,28 @@ cosmetic/accessibility note against the Front-end (BUG-1), does not affect funct
   `claude-in-chrome` was not available in this session, so responsive behaviour was
   verified by CSS/DOM inspection rather than pixel emulation (see item 4).
 - **Back-end unit suite** — `node --test` in `backend/` (8/8 pass).
+- **Poster URLs** — fetched all 5 `posterUrl` values from `GET /api/movies`.
+
+All three suites (44 + 21 + 8) were re-run against the fresh reseed after `e72b7ca`
+and the Front-end BUG-1 fix `dc0e0d8` — still 73/73 green, DB integrity clean.
+
+---
+
+## Poster URLs valid — PASS
+
+After the Back-end fix (`e72b7ca`) and reseed, every movie's `posterUrl` from
+`GET /api/movies` returns HTTP 200:
+
+| Movie | Poster | Status |
+|---|---|---|
+| Dune: Part Two | `…/w400/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg` | 200 |
+| Everything Everywhere All at Once | `…/w400/w3LxiVYdWWRvEVdn5RYq6jIqkb1.jpg` | 200 |
+| Oppenheimer | `…/w400/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg` | 200 |
+| Spider-Man: Across the Spider-Verse | `…/w400/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg` | 200 |
+| The Batman | `…/w400/74xTEgt7R36Fpooo50r9T25onhq.jpg` | 200 |
+
+The Dune path now contains `8b8R8l88` (was a 404 before). The Front-end also renders a
+titled inline-SVG placeholder on any future poster load failure (`f6767d1`).
 
 ---
 
@@ -91,7 +115,7 @@ Completed end-to-end bookings against **all 5 movies** across different showtime
   form → Pay & confirm → confirmation with reference, movie, cinema, seats, tickets, total)
   works in jsdom with zero uncaught rejections.
 
-## 4. Desktop + mobile — PASS (see BUG-1)
+## 4. Desktop + mobile — PASS
 
 `claude-in-chrome` unavailable; verified via `styles.css` / DOM structure and jsdom render.
 
@@ -99,15 +123,15 @@ Completed end-to-end bookings against **all 5 movies** across different showtime
   `repeat(3,1fr)` at `min-width:980px`, card switches to poster-on-top at 980px. Media
   queries are unambiguous and the grid container is `max-width:1080px; padding:0 16px`.
 - **Seat map does not widen the page:** the map (`display:inline-flex; min-width:100%`)
-  lives inside `.seatmap-scroll { overflow-x:auto }`. A row of 10 × 34px seats (~420px)
+  lives inside `.seatmap-scroll { overflow-x:auto }`. A row of 10 × 44px seats (~520px)
   exceeds a 360px viewport's content box, so it scrolls **inside its own container**; the
   `<body>` has `margin:0` and every ancestor is `max-width:100%`, so there is no page-level
   horizontal scroll. Header, breadcrumb, `.movie-sub`, `.showtimes`, `.card-row` and
   `.legend` all use `flex-wrap:wrap`.
 - **Confirmation readable at mobile:** `.confirm-details { max-width:360px; margin:auto }`
   with flex rows (`dt` left / `dd` right); fits ~328px content width.
-- **Tap targets:** all `.btn`, showtime buttons, and form inputs are `min-height:44px`.
-  **Exception:** `.seat` buttons are `34px` (mobile) / `30px` (≥640px) — see BUG-1.
+- **Tap targets:** all `.btn`, showtime buttons, form inputs, and (after `dc0e0d8`) `.seat`
+  buttons are ≥44px at every width.
 - `prefers-reduced-motion` honored (spinner slows to 2s); `prefers-color-scheme: dark`
   fully themed.
 
@@ -146,10 +170,17 @@ a specific inline message (field errors for validation, pay-form error for
   breathing room, so this is minor.)
 - **Suggested fix:** bump `.seat` to 40–44px, or soften the README claim to scope it to
   primary action buttons.
-- **Status:** OPEN (reported to Front-end).
+- **Status:** **FIXED / CONFIRMED** — Front-end commit `dc0e0d8` sets `.seat` to 44×44px at
+  every width and removes the `min-width:640px` shrink rule; README wording updated. Re-ran
+  the jsdom UI suite (21/21) and inspected the live `styles.css` served from `:4000`:
+  `.seat { width:44px; height:44px }`, no shrink override. Seat map still scrolls inside
+  `.seatmap-scroll` on narrow screens (no page-level horizontal scroll).
 
 ---
 
 ## Re-test log
 
-_(none yet — no fixes submitted)_
+| When | Change | Result |
+|---|---|---|
+| after `e72b7ca` + reseed | Back-end fix for the dead Dune poster URL | **PASS** — all 5 posters return 200; Dune path now `…8b8R8l88…`. Full suite re-run 73/73, DB integrity clean. |
+| after `dc0e0d8` | Front-end BUG-1 fix (44px seats) | **PASS / CONFIRMED** — jsdom UI suite 21/21; live CSS verified. BUG-1 closed. |
