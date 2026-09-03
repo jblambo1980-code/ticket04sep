@@ -5,13 +5,28 @@
   "private": true,
   "type": "commonjs",
   "main": "server.js",
+  "bin": "pkg-entry.js",
   "scripts": {
     "start": "node server.js",
     "seed": "node seed.js",
-    "test": "node --test"
+    "test": "node --test",
+    "build:exe": "node build-exe.js"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
     "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.22.0"
+  },
+  "pkg": {
+    "targets": [
+      "node22-win-x64"
+    ],
+    "outputPath": "../dist",
+    "assets": [
+      "../frontend/**/*"
+    ],
+    "scripts": []
   }
 }

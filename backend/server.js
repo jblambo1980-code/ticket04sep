@@ -143,33 +143,75 @@ app.use('/api', (req, res) => {
   sendError(res, 404, 'NOT_FOUND', `No API route for ${req.method} ${req.originalUrl}.`);
 });
 
-// Serve the front-end (owned by the Front-end agent). Fall back gracefully.
-if (fs.existsSync(FRONTEND_DIR)) {
-  app.use(express.static(FRONTEND_DIR));
-  app.get('*', (req, res) => {
-    const indexPath = path.join(FRONTEND_DIR, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
-      res
-        .status(200)
-        .type('html')
-        .send(
-          '<!doctype html><meta charset="utf-8"><title>CineBook API</title>' +
-            '<h1>CineBook backend is running</h1>' +
-            '<p>The front-end has not been built yet. API is live under <code>/api</code>.</p>'
-        );
+// Serve the front-end. Files are read once into memory (via fs.readFileSync,
+// which works both on disk and inside a pkg snapshot), so this behaves
+// identically for `npm start` and for the packaged .exe. The frontend/ dir is
+// owned by the Front-end agent — we only read it.
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.ico': 'image/x-icon',
+  '.webp': 'image/webp',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.map': 'application/json; charset=utf-8',
+};
+
+function loadFrontend(dir) {
+  const files = new Map();
+  let entries;
+  try {
+    entries = fs.readdirSync(dir);
+  } catch {
+    return files;
+  }
+  for (const name of entries) {
+    const full = path.join(dir, name);
+    try {
+      const stat = fs.statSync(full);
+      if (stat.isFile()) files.set('/' + name.replace(/\\/g, '/'), fs.readFileSync(full));
+    } catch {
+      /* skip unreadable entry */
     }
-  });
-} else {
-  app.get('*', (req, res) => {
-    res.status(200).type('text').send('CineBook backend running. API under /api. No frontend dir.');
-  });
+  }
+  return files;
 }
 
-function start() {
-  return app.listen(PORT, () => {
-    console.log(`CineBook backend listening on http://localhost:${PORT}`);
+const frontendFiles = loadFrontend(FRONTEND_DIR);
+const hasIndex = frontendFiles.has('/index.html');
+
+const PLACEHOLDER =
+  '<!doctype html><meta charset="utf-8"><title>CineBook</title>' +
+  '<h1>CineBook backend is running</h1>' +
+  '<p>The front-end is not bundled. API is live under <code>/api</code>.</p>';
+
+app.get('*', (req, res) => {
+  const key = req.path === '/' ? '/index.html' : req.path;
+  if (frontendFiles.has(key)) {
+    res.type(MIME[path.extname(key).toLowerCase()] || 'application/octet-stream');
+    return res.send(frontendFiles.get(key));
+  }
+  // SPA-style fallback to index.html for unknown non-file paths.
+  if (hasIndex && !path.extname(key)) {
+    res.type('text/html; charset=utf-8');
+    return res.send(frontendFiles.get('/index.html'));
+  }
+  if (hasIndex) return res.status(404).type('text').send('Not found');
+  res.status(200).type('html').send(PLACEHOLDER);
+});
+
+function start(port) {
+  const listenPort = port || PORT;
+  return app.listen(listenPort, () => {
+    console.log(`CineBook backend listening on http://localhost:${listenPort}`);
   });
 }
 
@@ -177,4 +219,4 @@ if (require.main === module) {
   start();
 }
 
-module.exports = { app, start };
+module.exports = { app, start, PORT };

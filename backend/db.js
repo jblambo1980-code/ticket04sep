@@ -1,11 +1,43 @@
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const Database = require('better-sqlite3');
 
-const DB_PATH = process.env.CINEBOOK_DB || path.join(__dirname, 'cinebook.db');
+// Where the SQLite file lives.
+//  - CINEBOOK_DB env var always wins (used by tests).
+//  - In a packaged build (process.pkg) __dirname is a read-only snapshot, so the
+//    DB goes to a per-user writable dir: %LOCALAPPDATA%\CineBook (Windows) or an
+//    OS-appropriate equivalent.
+//  - Otherwise it sits next to this file for local dev.
+function resolveDbPath() {
+  if (process.env.CINEBOOK_DB) return process.env.CINEBOOK_DB;
+  if (process.pkg) {
+    const base =
+      process.env.LOCALAPPDATA ||
+      process.env.APPDATA ||
+      (process.env.HOME ? path.join(process.env.HOME, '.local', 'share') : os.tmpdir());
+    const dir = path.join(base, 'CineBook');
+    fs.mkdirSync(dir, { recursive: true });
+    return path.join(dir, 'cinebook.db');
+  }
+  return path.join(__dirname, 'cinebook.db');
+}
 
-const db = new Database(DB_PATH);
+const DB_PATH = resolveDbPath();
+
+// In a packaged build, pkg cannot embed the native .node addon in a loadable
+// way, so build-exe.js ships `better_sqlite3.node` next to the executable and we
+// hand the loaded addon object straight to better-sqlite3.
+let dbOptions = {};
+if (process.pkg) {
+  const addonPath = path.join(path.dirname(process.execPath), 'better_sqlite3.node');
+  // eslint-disable-next-line import/no-dynamic-require, global-require
+  dbOptions = { nativeBinding: require(addonPath) };
+}
+
+const db = new Database(DB_PATH, dbOptions);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
