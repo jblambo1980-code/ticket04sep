@@ -11,7 +11,7 @@ const MOVIES = [
     title: 'Dune: Part Two',
     genre: 'Sci-Fi',
     rating: 'PG-13',
-    poster_url: 'https://image.tmdb.org/t/p/w400/1pdfLvkbY9ohJldKgs31yzcz5m4.jpg',
+    poster_url: 'https://image.tmdb.org/t/p/w400/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg',
     synopsis:
       'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.',
     duration_min: 166,
