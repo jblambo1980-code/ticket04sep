@@ -1,0 +1,17 @@
+{
+  "name": "cinebook-backend",
+  "version": "1.0.0",
+  "description": "CineBook booking API",
+  "private": true,
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "express": "^4.21.2"
+  }
+}
