@@ -21,15 +21,39 @@ const fmtDateTime = (iso) => {
 
 const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
-// Inline SVG placeholder for posters that fail to load (or are missing).
-const POSTER_FALLBACK =
-  'data:image/svg+xml,' +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450">' +
-      '<rect width="300" height="450" fill="#2a2d3a"/>' +
-      '<text x="150" y="228" font-family="system-ui,sans-serif" font-size="20" fill="#8a8fa3" text-anchor="middle">No poster</text>' +
-    '</svg>'
-  );
+// A DOM placeholder shown when a poster image is missing or fails to load.
+// Built as a real element (not a data-URI image) so it can't itself 404 or
+// render as a broken-image glyph, and so it can show the movie title.
+function makePosterPlaceholder(title) {
+  const div = document.createElement('div');
+  div.className = 'poster poster-fallback';
+  div.setAttribute('role', 'img');
+  div.setAttribute('aria-label', `${title} — poster unavailable`);
+  const t = document.createElement('span');
+  t.className = 'poster-fallback-title';
+  t.textContent = title;
+  const sub = document.createElement('span');
+  sub.className = 'poster-fallback-sub';
+  sub.textContent = 'Poster unavailable';
+  div.append(t, sub);
+  return div;
+}
+
+// Returns an <img> that swaps itself for a titled placeholder on load error,
+// or the placeholder directly when there is no URL to try.
+function makePoster(movie) {
+  if (!movie.posterUrl) return makePosterPlaceholder(movie.title);
+  const img = document.createElement('img');
+  img.className = 'poster';
+  img.loading = 'lazy';
+  img.decoding = 'async';
+  img.alt = `${movie.title} poster`;
+  img.addEventListener('error', () => {
+    img.replaceWith(makePosterPlaceholder(movie.title));
+  }, { once: true });
+  img.src = movie.posterUrl;
+  return img;
+}
 
 function setStatus(el, kind, msg, onRetry) {
   el.hidden = false;
@@ -131,14 +155,7 @@ function renderMovies() {
     const card = document.createElement('article');
     card.className = 'movie-card';
 
-    const img = document.createElement('img');
-    img.className = 'poster';
-    img.loading = 'lazy';
-    img.alt = `${movie.title} poster`;
-    img.src = movie.posterUrl || POSTER_FALLBACK;
-    img.addEventListener('error', () => {
-      if (img.src !== POSTER_FALLBACK) img.src = POSTER_FALLBACK;
-    }, { once: true });
+    const poster = makePoster(movie);
 
     const body = document.createElement('div');
     body.className = 'movie-body';
@@ -173,7 +190,7 @@ function renderMovies() {
     }
 
     body.append(showtimes);
-    card.append(img, body);
+    card.append(poster, body);
     grid.append(card);
   }
 }
