@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>CineBook — Book movie tickets</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AC%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <button type="button" class="brand" id="brandHome" aria-label="CineBook home">
+        <span aria-hidden="true">🎬</span> CineBook
+      </button>
+      <nav class="breadcrumb" id="breadcrumb" aria-label="Booking progress"></nav>
+    </div>
+  </header>
+
+  <main class="wrap" id="main">
+    <!-- Movie listing -->
+    <section id="view-movies" class="view" aria-labelledby="moviesHeading">
+      <h1 id="moviesHeading">Now showing</h1>
+      <div id="moviesStatus" class="status" role="status"></div>
+      <div id="moviesGrid" class="movies-grid" hidden></div>
+    </section>
+
+    <!-- Seat selection -->
+    <section id="view-seats" class="view" hidden aria-labelledby="seatsHeading">
+      <button type="button" class="link-back" data-nav="movies">&larr; Back to movies</button>
+      <h1 id="seatsHeading">Select your seats</h1>
+      <div id="showtimeMeta" class="showtime-meta"></div>
+      <div id="seatsStatus" class="status" role="status"></div>
+
+      <div id="seatsArea" hidden>
+        <div id="seatConflictError" class="inline-error" role="alert" hidden></div>
+        <div class="screen-wrap">
+          <div class="screen">SCREEN</div>
+        </div>
+        <div class="seatmap-scroll">
+          <div id="seatMap" class="seatmap" role="group" aria-label="Seat map"></div>
+        </div>
+        <ul class="legend">
+          <li><span class="seat-swatch available"></span> Available</li>
+          <li><span class="seat-swatch selected"></span> Selected</li>
+          <li><span class="seat-swatch booked"></span> Booked</li>
+        </ul>
+
+        <div class="selection-bar">
+          <div class="selection-summary">
+            <strong id="selCount">0 seats</strong>
+            <span id="selLabels" class="muted"></span>
+          </div>
+          <button type="button" id="toSummaryBtn" class="btn primary" disabled>Continue</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary + payment -->
+    <section id="view-summary" class="view" hidden aria-labelledby="summaryHeading">
+      <button type="button" class="link-back" data-nav="seats">&larr; Back to seats</button>
+      <h1 id="summaryHeading">Review &amp; pay</h1>
+
+      <div class="summary-card">
+        <div id="summaryDetails" class="summary-details"></div>
+        <dl class="price-lines">
+          <div><dt>Ticket price</dt><dd id="sumUnit">—</dd></div>
+          <div><dt>Seats</dt><dd id="sumSeats">—</dd></div>
+          <div class="total"><dt>Total</dt><dd id="sumTotal">—</dd></div>
+        </dl>
+        <p class="muted small">Final total is confirmed by the server when you pay.</p>
+      </div>
+
+      <form id="payForm" class="pay-form" novalidate>
+        <h2>Your details</h2>
+        <label>
+          Full name
+          <input type="text" id="custName" name="name" autocomplete="name" required />
+          <span class="field-error" data-for="name"></span>
+        </label>
+        <label>
+          Email
+          <input type="email" id="custEmail" name="email" autocomplete="email" required />
+          <span class="field-error" data-for="email"></span>
+        </label>
+
+        <h2>Payment</h2>
+        <p class="muted small">Demo only — no card is charged. This simulates a payment step.</p>
+        <div class="card-row">
+          <label class="grow">Card number
+            <input type="text" id="cardNumber" inputmode="numeric" placeholder="4242 4242 4242 4242" autocomplete="off" />
+          </label>
+          <label>Expiry
+            <input type="text" id="cardExp" placeholder="12/28" autocomplete="off" />
+          </label>
+          <label>CVC
+            <input type="text" id="cardCvc" inputmode="numeric" placeholder="123" autocomplete="off" />
+          </label>
+        </div>
+
+        <div id="payError" class="inline-error" role="alert" hidden></div>
+
+        <button type="submit" id="payBtn" class="btn primary big">
+          <span class="btn-label">Pay &amp; confirm</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+    </section>
+
+    <!-- Confirmation -->
+    <section id="view-confirm" class="view" hidden aria-labelledby="confirmHeading">
+      <div class="confirm-card">
+        <div class="check" aria-hidden="true">✓</div>
+        <h1 id="confirmHeading">Booking confirmed</h1>
+        <p class="ref">Reference <strong id="confRef"></strong></p>
+        <dl id="confDetails" class="confirm-details"></dl>
+        <button type="button" class="btn primary" data-nav="movies">Book another</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap">
+    <p class="muted small">CineBook demo · payments are simulated</p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
