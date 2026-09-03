@@ -42,8 +42,9 @@ button (`loadMovies`, `loadShowtime`). No uncaught promise rejections.
 ## Responsive
 
 Mobile-first. Cards are 2-up at 640px, 3-up (poster on top) at 980px. Seat map never widens
-the page — it scrolls inside `.seatmap-scroll`. All tap targets are ≥44px. Honors
-`prefers-reduced-motion`.
+the page — it scrolls inside `.seatmap-scroll` (seats stay 44×44px at every width, so on a
+narrow phone the map scrolls horizontally rather than shrinking the targets). All interactive
+controls are ≥44px. Honors `prefers-reduced-motion`.
 
 ## Testing
 

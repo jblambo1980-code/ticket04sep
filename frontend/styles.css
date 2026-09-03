@@ -346,12 +346,12 @@ main.wrap { padding-top: 20px; padding-bottom: 40px; }
   flex: none;
 }
 .seat {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   flex: none;
   border: 1px solid transparent;
   border-radius: 8px 8px 4px 4px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   cursor: pointer;
   background: var(--seat-available);
   color: var(--seat-available-ink);
@@ -534,7 +534,6 @@ main.wrap { padding-top: 20px; padding-bottom: 40px; }
   .movies-grid { grid-template-columns: repeat(2, 1fr); }
   .movie-card { grid-template-columns: 140px 1fr; }
   .poster { width: 140px; }
-  .seat { width: 30px; height: 30px; }
 }
 
 @media (min-width: 980px) {
