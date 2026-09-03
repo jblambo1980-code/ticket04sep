@@ -146,7 +146,7 @@ function renderMovies() {
       <h2 class="movie-title">${esc(movie.title)}</h2>
       <p class="movie-sub">
         <span class="tag">${esc(movie.genre || '—')}</span>
-        <span class="rating">★ ${esc(String(movie.rating ?? '—'))}</span>
+        ${movie.rating != null && movie.rating !== '' ? `<span class="rating">${esc(String(movie.rating))}</span>` : ''}
         ${movie.durationMin ? `<span class="muted">${movie.durationMin} min</span>` : ''}
       </p>
       ${movie.synopsis ? `<p class="movie-synopsis">${esc(movie.synopsis)}</p>` : ''}

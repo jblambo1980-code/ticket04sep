@@ -228,7 +228,15 @@ main.wrap { padding-top: 20px; padding-bottom: 40px; }
   padding: 2px 10px;
   font-size: 0.8rem;
 }
-.rating { color: #d98a00; font-weight: 600; }
+.rating {
+  border: 1px solid var(--muted);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
 .movie-synopsis {
   font-size: 0.9rem;
   color: var(--muted);
