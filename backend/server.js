@@ -4,9 +4,12 @@ const path = require('path');
 const fs = require('fs');
 const express = require('express');
 
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
 const { db } = require('./db');
 const { seedIfEmpty } = require('./seed');
 const { BookingError, createBooking, serializeBooking } = require('./bookings');
+const { createPaymentIntent } = require('./payments');
 
 const PORT = process.env.PORT || 4000;
 const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
@@ -113,9 +116,29 @@ app.get('/api/showtimes/:id', (req, res) => {
   });
 });
 
-app.post('/api/bookings', (req, res) => {
+app.get('/api/config/stripe', (req, res) => {
+  if (!process.env.STRIPE_PUBLISHABLE_KEY) {
+    return sendError(res, 500, 'STRIPE_NOT_CONFIGURED', 'Stripe publishable key is not configured.');
+  }
+  res.json({ publishableKey: process.env.STRIPE_PUBLISHABLE_KEY });
+});
+
+app.post('/api/payments/create-intent', async (req, res) => {
   try {
-    const booking = createBooking(req.body);
+    const result = await createPaymentIntent(req.body);
+    res.status(201).json(result);
+  } catch (err) {
+    if (err instanceof BookingError) {
+      return sendError(res, err.httpStatus, err.code, err.message, err.extra);
+    }
+    console.error('POST /api/payments/create-intent failed:', err);
+    return sendError(res, 500, 'INTERNAL_ERROR', 'Unexpected error starting payment.');
+  }
+});
+
+app.post('/api/bookings', async (req, res) => {
+  try {
+    const booking = await createBooking(req.body);
     res.status(201).json(booking);
   } catch (err) {
     if (err instanceof BookingError) {

@@ -50,3 +50,8 @@ export const createBooking = (payload) =>
   request('/bookings', { method: 'POST', body: JSON.stringify(payload) });
 
 export const getBooking = (reference) => request(`/bookings/${encodeURIComponent(reference)}`);
+
+export const getStripeConfig = () => request('/config/stripe');
+
+export const createPaymentIntent = (payload) =>
+  request('/payments/create-intent', { method: 'POST', body: JSON.stringify(payload) });

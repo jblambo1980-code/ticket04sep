@@ -104,6 +104,16 @@ CREATE INDEX IF NOT EXISTS idx_seats_showtime ON seats(showtime_id);
 CREATE INDEX IF NOT EXISTS idx_booking_seats_booking ON booking_seats(booking_id);
 `);
 
+// Migration: add bookings.payment_intent_id for existing databases created
+// before Stripe was wired in (CREATE TABLE IF NOT EXISTS won't add columns).
+const bookingColumns = db.prepare('PRAGMA table_info(bookings)').all().map((c) => c.name);
+if (!bookingColumns.includes('payment_intent_id')) {
+  db.exec('ALTER TABLE bookings ADD COLUMN payment_intent_id TEXT');
+}
+db.exec(
+  'CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_payment_intent ON bookings(payment_intent_id) WHERE payment_intent_id IS NOT NULL'
+);
+
 function isEmpty() {
   const row = db.prepare('SELECT COUNT(*) AS n FROM movies').get();
   return row.n === 0;

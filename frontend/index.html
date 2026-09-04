@@ -86,18 +86,12 @@
         </label>
 
         <h2>Payment</h2>
-        <p class="muted small">Demo only — no card is charged. This simulates a payment step.</p>
-        <div class="card-row">
-          <label class="grow">Card number
-            <input type="text" id="cardNumber" inputmode="numeric" placeholder="4242 4242 4242 4242" autocomplete="off" />
-          </label>
-          <label>Expiry
-            <input type="text" id="cardExp" placeholder="12/28" autocomplete="off" />
-          </label>
-          <label>CVC
-            <input type="text" id="cardCvc" inputmode="numeric" placeholder="123" autocomplete="off" />
-          </label>
+        <p class="muted small">Secured by Stripe. Use test card 4242 4242 4242 4242, any future expiry, any CVC.</p>
+        <div id="paymentStatus" class="status" role="status" hidden></div>
+        <div class="stripe-card-wrap">
+          <div id="cardElement"></div>
         </div>
+        <div id="cardErrors" class="field-error" role="alert"></div>
 
         <div id="payError" class="inline-error" role="alert" hidden></div>
 
@@ -121,9 +115,10 @@
   </main>
 
   <footer class="site-footer wrap">
-    <p class="muted small">CineBook demo · payments are simulated</p>
+    <p class="muted small">CineBook demo · payments processed by Stripe (test mode)</p>
   </footer>
 
+  <script src="https://js.stripe.com/v3/"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

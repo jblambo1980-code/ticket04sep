@@ -1,18 +1,11 @@
 'use strict';
 
 const { db } = require('./db');
+const { BookingError } = require('./errors');
+const payments = require('./payments');
 
 const REF_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-class BookingError extends Error {
-  constructor(httpStatus, code, message, extra) {
-    super(message);
-    this.httpStatus = httpStatus;
-    this.code = code;
-    this.extra = extra || null;
-  }
-}
 
 function randomReference() {
   let s = 'CB-';
@@ -102,7 +95,11 @@ function validateBookingInput(body) {
   if (!EMAIL_RE.test(email)) {
     throw new BookingError(400, 'INVALID_REQUEST', 'customer.email must be a valid email address.');
   }
-  return { showtimeId, seatIds, name, email };
+  const paymentIntentId = typeof body.paymentIntentId === 'string' ? body.paymentIntentId.trim() : '';
+  if (!paymentIntentId) {
+    throw new BookingError(400, 'INVALID_REQUEST', 'paymentIntentId is required.');
+  }
+  return { showtimeId, seatIds, name, email, paymentIntentId };
 }
 
 /**
@@ -111,8 +108,8 @@ function validateBookingInput(body) {
  * transaction; booking_seats.seat_id is UNIQUE, so a concurrent booking of the
  * same seat makes exactly one of the two transactions fail and roll back.
  */
-function createBooking(body) {
-  const { showtimeId, seatIds, name, email } = validateBookingInput(body);
+async function createBooking(body) {
+  const { showtimeId, seatIds, name, email, paymentIntentId } = validateBookingInput(body);
 
   const showtime = db.prepare('SELECT id, price_cents FROM showtimes WHERE id = ?').get(showtimeId);
   if (!showtime) {
@@ -141,11 +138,15 @@ function createBooking(body) {
   const totalCents = showtime.price_cents * seatIds.length;
   const createdAt = new Date().toISOString();
 
+  // Payment must have actually succeeded, for this exact showtime/seats/amount,
+  // and not have been spent on another booking already, before we touch the DB.
+  await payments.verifyPaymentIntent(paymentIntentId, showtimeId, seatIds, totalCents);
+
   const insertCustomer = db.prepare(
     'INSERT INTO customers (name, email, created_at) VALUES (?, ?, ?)'
   );
   const insertBooking = db.prepare(
-    'INSERT INTO bookings (reference, showtime_id, customer_id, total_cents, status, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO bookings (reference, showtime_id, customer_id, total_cents, status, created_at, payment_intent_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
   );
   const insertBookingSeat = db.prepare(
     'INSERT INTO booking_seats (booking_id, seat_id) VALUES (?, ?)'
@@ -154,7 +155,7 @@ function createBooking(body) {
   const tx = db.transaction((reference) => {
     const customerId = Number(insertCustomer.run(name, email, createdAt).lastInsertRowid);
     const bookingId = Number(
-      insertBooking.run(reference, showtimeId, customerId, totalCents, 'confirmed', createdAt)
+      insertBooking.run(reference, showtimeId, customerId, totalCents, 'confirmed', createdAt, paymentIntentId)
         .lastInsertRowid
     );
     for (const seatId of seatIds) {
@@ -174,7 +175,9 @@ function createBooking(body) {
       err.code.startsWith('SQLITE_CONSTRAINT') &&
       /booking_seats/.test(err.message)
     ) {
-      // A seat we selected is already booked. Re-check to name the offenders.
+      // A seat we selected is already booked. The customer already paid, so
+      // refund them before reporting the conflict.
+      await payments.refundPaymentIntent(paymentIntentId);
       const takenPlaceholders = seatIds.map(() => '?').join(',');
       const taken = db
         .prepare(
@@ -189,7 +192,7 @@ function createBooking(body) {
       throw new BookingError(
         409,
         'SEAT_UNAVAILABLE',
-        `Seats ${names.join(', ')} are no longer available.`,
+        `Seats ${names.join(', ')} are no longer available. Your payment has been refunded.`,
         { unavailableSeats: names }
       );
     }

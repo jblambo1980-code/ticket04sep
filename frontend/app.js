@@ -1,4 +1,4 @@
-import { getMovies, getShowtime, createBooking, ApiError } from './api.js';
+import { getMovies, getShowtime, createBooking, createPaymentIntent, getStripeConfig, ApiError } from './api.js';
 
 // ---------- helpers ----------
 
@@ -90,7 +90,30 @@ const state = {
   showtimeSummary: null,   // { movieTitle, cinemaName, cinemaLocation, startsAt, priceCents } from the movie card
   selectedSeatIds: new Set(),
   booking: null,
+  clientSecret: null,      // current Stripe PaymentIntent client secret, for this exact seat selection
+  paymentIntentId: null,
 };
+
+// ---------- Stripe ----------
+
+let stripe = null;
+let cardElement = null;
+let stripeReadyPromise = null;
+
+function ensureStripe() {
+  if (stripeReadyPromise) return stripeReadyPromise;
+  stripeReadyPromise = (async () => {
+    const { publishableKey } = await getStripeConfig();
+    stripe = window.Stripe(publishableKey);
+    const elements = stripe.elements();
+    cardElement = elements.create('card');
+    cardElement.mount('#cardElement');
+    cardElement.on('change', (event) => {
+      $('#cardErrors').textContent = event.error ? event.error.message : '';
+    });
+  })();
+  return stripeReadyPromise;
+}
 
 const views = {
   movies: $('#view-movies'),
@@ -327,11 +350,12 @@ function syncSelectionBar() {
 
 // ---------- summary + payment ----------
 
-function goToSummary() {
+async function goToSummary() {
   const s = state.showtime;
   const unit = s.priceCents;
   const n = state.selectedSeatIds.size;
   const labels = selectedSeatLabels();
+  const seatIds = [...state.selectedSeatIds];
 
   $('#summaryDetails').innerHTML = `
     <h2>${esc(s.movie?.title || state.showtimeSummary?.movieTitle || 'Movie')}</h2>
@@ -346,6 +370,25 @@ function goToSummary() {
   $('#payError').hidden = true;
   clearFieldErrors();
   showView('summary');
+
+  state.clientSecret = null;
+  state.paymentIntentId = null;
+  const payBtn = $('#payBtn');
+  payBtn.disabled = true;
+  const payStatus = $('#paymentStatus');
+  setStatus(payStatus, 'loading', 'Preparing payment…');
+
+  try {
+    await ensureStripe();
+    const result = await createPaymentIntent({ showtimeId: s.id, seatIds });
+    state.clientSecret = result.clientSecret;
+    state.paymentIntentId = result.paymentIntentId;
+    $('#sumTotal').textContent = money(result.totalCents);
+    clearStatus(payStatus);
+    payBtn.disabled = false;
+  } catch (err) {
+    setStatus(payStatus, 'error', errText(err, 'Could not start payment.'), () => goToSummary());
+  }
 }
 
 function clearFieldErrors() {
@@ -380,6 +423,11 @@ async function onPaySubmit(e) {
   const customer = validatePayForm();
   if (!customer) return;
 
+  if (!stripe || !cardElement || !state.clientSecret) {
+    showPayError('Payment is still being prepared. Please wait a moment and try again.');
+    return;
+  }
+
   const payError = $('#payError');
   payError.hidden = true;
 
@@ -389,13 +437,27 @@ async function onPaySubmit(e) {
   btn.disabled = true;
 
   try {
-    // Simulated payment settle delay, then the real booking call.
-    await new Promise((r) => setTimeout(r, 600));
+    const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(state.clientSecret, {
+      payment_method: {
+        card: cardElement,
+        billing_details: { name: customer.name, email: customer.email },
+      },
+    });
+
+    if (stripeError) {
+      showPayError(stripeError.message || 'Your card was declined. Please try a different card.');
+      return;
+    }
+    if (!paymentIntent || paymentIntent.status !== 'succeeded') {
+      showPayError('Payment was not completed. Please try again.');
+      return;
+    }
 
     const booking = await createBooking({
       showtimeId: state.showtime.id,
       seatIds: [...state.selectedSeatIds],
       customer,
+      paymentIntentId: paymentIntent.id,
     });
 
     state.booking = booking;
