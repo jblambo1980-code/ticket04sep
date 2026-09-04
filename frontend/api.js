@@ -1,6 +1,6 @@
 // Thin API client for the CineBook backend. Same-origin, JSON, money in integer cents.
 
-const BASE = '/api';
+const BASE = 'https://ticket04sep.onrender.com/api';
 
 /**
  * Error thrown for any non-2xx API response. Carries the contract error shape.
