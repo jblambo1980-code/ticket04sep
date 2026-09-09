@@ -100,18 +100,52 @@ let stripe = null;
 let cardElement = null;
 let stripeReadyPromise = null;
 
+// Stripe Elements render in an isolated iframe and don't inherit page CSS, so we
+// feed them the current theme's colours explicitly. Without this the card input
+// uses Stripe's default near-black text, which is invisible (looks disabled) on
+// the dark-mode background.
+function cardElementStyle() {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name, fallback) => cs.getPropertyValue(name).trim() || fallback;
+  return {
+    base: {
+      color: v('--text', '#1c1e26'),
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+      fontSize: '16px',
+      iconColor: v('--muted', '#61667a'),
+      '::placeholder': { color: v('--muted', '#61667a') },
+    },
+    invalid: {
+      color: v('--err-ink', '#a12626'),
+      iconColor: v('--err-ink', '#a12626'),
+    },
+  };
+}
+
 function ensureStripe() {
   if (stripeReadyPromise) return stripeReadyPromise;
   stripeReadyPromise = (async () => {
+    if (typeof window.Stripe !== 'function') {
+      throw new Error('Payment library failed to load. Please refresh and try again.');
+    }
     const { publishableKey } = await getStripeConfig();
     stripe = window.Stripe(publishableKey);
     const elements = stripe.elements();
-    cardElement = elements.create('card');
+    cardElement = elements.create('card', { style: cardElementStyle() });
     cardElement.mount('#cardElement');
     cardElement.on('change', (event) => {
       $('#cardErrors').textContent = event.error ? event.error.message : '';
     });
-  })();
+    // Keep the card input readable if the OS theme flips while the page is open.
+    const scheme = window.matchMedia('(prefers-color-scheme: dark)');
+    scheme.addEventListener('change', () => {
+      if (cardElement) cardElement.update({ style: cardElementStyle() });
+    });
+  })().catch((err) => {
+    // Don't cache the failure — let the next attempt retry from scratch.
+    stripeReadyPromise = null;
+    throw err;
+  });
   return stripeReadyPromise;
 }
 
