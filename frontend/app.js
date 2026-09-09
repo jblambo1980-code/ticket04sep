@@ -7,7 +7,7 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 const money = (cents) =>
   typeof cents === 'number'
-    ? new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(cents / 100)
+    ? new Intl.NumberFormat('en-AE', { style: 'currency', currency: 'AED' }).format(cents / 100)
     : '—';
 
 const fmtDateTime = (iso) => {

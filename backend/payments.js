@@ -77,7 +77,7 @@ async function createPaymentIntent(body) {
   try {
     intent = await stripe.paymentIntents.create({
       amount: totalCents,
-      currency: 'usd',
+      currency: 'aed',
       automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
       metadata: {
         showtimeId: String(showtimeId),
